@@ -1,0 +1,17 @@
+variable "location" {
+  type        = string
+  default     = "northeurope"
+  description = "Azure region for resources."
+}
+
+variable "sql_admin_login" {
+  type        = string
+  default     = "sqladmin"
+  description = "SQL Server admin username."
+}
+
+variable "sql_admin_password" {
+  type        = string
+  description = "SQL Server admin password."
+  sensitive   = true
+}
