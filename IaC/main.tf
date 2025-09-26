@@ -51,6 +51,13 @@ resource "azurerm_mssql_server" "sql" {
   tags                         = local.tags
 }
 
+resource "azurerm_mssql_firewall_rule" "allow_my_ip" {
+  name             = "AllowMyIP"
+  server_id        = azurerm_mssql_server.sql.id
+  start_ip_address = var.my_ip_address
+  end_ip_address   = var.my_ip_address
+}
+
 resource "azurerm_mssql_database" "db" {
   name           = local.db_name
   server_id      = azurerm_mssql_server.sql.id

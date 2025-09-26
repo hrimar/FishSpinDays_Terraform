@@ -15,3 +15,8 @@ variable "sql_admin_password" {
   description = "SQL Server admin password."
   sensitive   = true
 }
+
+variable "my_ip_address" {
+  type        = string
+  description = "Your public IP address to allow access to SQL Server."
+}
