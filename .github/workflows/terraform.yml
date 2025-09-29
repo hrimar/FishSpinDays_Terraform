@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'IaC/**'
+      - '.github/workflows/**'
 
 env:
   TF_WORKING_DIR: ./IaC
