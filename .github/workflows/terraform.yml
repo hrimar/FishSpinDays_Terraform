@@ -38,15 +38,15 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform fmt -recursive
 
-      # 4. Terraform validate
+      # 4. Terraform Init
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init -input=false -upgrade
+
+      # 5. Terraform validate
       - name: Terraform Validate
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform validate
-
-      # 5. Terraform Init
-      - name: Terraform Init
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform init -input=false
 
       # 6. Terraform Plan
       - name: Terraform Plan
