@@ -1,15 +1,43 @@
-# ------------------------------------------------------
 # Resource Group
-# ------------------------------------------------------
 resource "azurerm_resource_group" "rg" {
   name     = local.rg_name
   location = var.location
   tags     = local.tags
 }
 
-# ------------------------------------------------------
-# SQL Server + Database
-# ------------------------------------------------------
+# App Service Plan
+resource "azurerm_service_plan" "appserviceplan" {
+  name                = local.plan_name
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  sku_name            = "F1"
+  os_type             = "Windows"
+  tags                = local.tags
+}
+
+# App Service
+resource "azurerm_windows_web_app" "webapp" {
+  name                = local.app_name
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  service_plan_id     = azurerm_service_plan.appserviceplan.id
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  site_config {
+    application_stack {
+      dotnet_version = "v8.0"
+    }
+    always_on   = false
+    http2_enabled = true
+  }
+
+  tags = local.tags
+}
+
+# SQL Server и Database
 resource "azurerm_mssql_server" "sql" {
   name                         = local.sql_name
   resource_group_name          = azurerm_resource_group.rg.name
@@ -34,53 +62,7 @@ resource "azurerm_mssql_database" "db" {
   tags      = local.tags
 }
 
-# ------------------------------------------------------
-# App Service Plan + Web App (with Managed Identity)
-# ------------------------------------------------------
-resource "azurerm_service_plan" "appserviceplan" {
-  name                = local.plan_name
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  sku_name            = "F1"
-  os_type             = "Windows"
-  tags                = local.tags
-}
-
-resource "azurerm_windows_web_app" "webapp" {
-  name                = local.app_name
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-  service_plan_id     = azurerm_service_plan.appserviceplan.id
-
-  identity {
-    type = "SystemAssigned"
-  }
-
-  app_settings = {
-    "DbConnectionString" = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.keyvault_db_connection_string.id})"
-  }
-
-  site_config {
-    application_stack {
-      dotnet_version = "v8.0"
-    }
-    always_on   = false
-    http2_enabled = true
-  }
-
-  tags = local.tags
-
-  lifecycle {
-    ignore_changes = [
-      app_settings
-    ]
-  }
-}
-
-
-# ------------------------------------------------------
 # Key Vault
-# ------------------------------------------------------
 data "azurerm_client_config" "current" {}
 
 resource "azurerm_key_vault" "kv" {
@@ -92,29 +74,13 @@ resource "azurerm_key_vault" "kv" {
   tags                = local.tags
 }
 
-resource "azurerm_key_vault_access_policy" "personal_keyvault_policy" {
+resource "azurerm_key_vault_access_policy" "peronal_keyvault_policy" {
   key_vault_id = azurerm_key_vault.kv.id
   tenant_id    = data.azurerm_client_config.current.tenant_id
   object_id    = data.azurerm_client_config.current.object_id
 
   secret_permissions = ["Get", "List", "Set", "Delete", "Purge", "Recover"]
   key_permissions    = ["Get", "List", "Create", "Delete"]
-
-  depends_on = [
-    azurerm_key_vault.kv
-  ]
-}
-
-resource "azurerm_key_vault_access_policy" "terraform_sp_keyvault_policy" {
-  key_vault_id = azurerm_key_vault.kv.id
-  tenant_id    = data.azurerm_client_config.current.tenant_id
-  object_id    = var.terraform_sp_object_id
-
-  secret_permissions = ["Get", "List", "Set", "Delete", "Purge", "Recover"]
-
-  depends_on = [
-    azurerm_key_vault.kv
-  ]
 }
 
 resource "azurerm_key_vault_access_policy" "webapp_keyvault_policy" {
@@ -124,29 +90,27 @@ resource "azurerm_key_vault_access_policy" "webapp_keyvault_policy" {
 
   secret_permissions = ["Get", "List"]
 
-  depends_on = [
-    azurerm_windows_web_app.webapp,
-    azurerm_key_vault.kv
-  ]
+  depends_on = [azurerm_windows_web_app.webapp, azurerm_key_vault.kv]
 }
 
+resource "azurerm_key_vault_access_policy" "terraform_sp_keyvault_policy" {
+  key_vault_id = azurerm_key_vault.kv.id
+  tenant_id    = data.azurerm_client_config.current.tenant_id
+  object_id    = var.terraform_sp_object_id
+
+  secret_permissions = ["Get", "List", "Set", "Delete", "Purge", "Recover"]
+}
+
+# Key Vault Secret
 resource "azurerm_key_vault_secret" "keyvault_db_connection_string" {
   name         = "DbConnectionString"
   value        = "Server=tcp:${azurerm_mssql_server.sql.name}.database.windows.net,1433;Database=${azurerm_mssql_database.db.name};Authentication=Active Directory Managed Identity"
   key_vault_id = azurerm_key_vault.kv.id
-
-  depends_on = [
-    azurerm_mssql_server.sql,
-    azurerm_mssql_database.db,
-    azurerm_key_vault_access_policy.terraform_sp_keyvault_policy,
-    azurerm_key_vault_access_policy.webapp_keyvault_policy,
-    azurerm_key_vault_access_policy.personal_keyvault_policy
-  ]
+  
+  depends_on = [azurerm_mssql_server.sql, azurerm_mssql_database.db, azurerm_key_vault.kv]
 }
 
-# ------------------------------------------------------
 # SignalR
-# ------------------------------------------------------
 resource "azurerm_signalr_service" "signalr" {
   name                = local.signalr_name
   location            = azurerm_resource_group.rg.location
