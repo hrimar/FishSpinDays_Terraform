@@ -52,12 +52,12 @@ resource "azurerm_mssql_server" "sql" {
   tags                         = local.tags
 }
 
-resource "azurerm_mssql_server_active_directory_administrator" "sql_admin" {
-  server_id         = azurerm_mssql_server.sql.id
-  login             = "hhristoff@yahoo.com"
-  object_id         = "a2153559-d8c7-4b10-9f6d-7b69532819ad"
-  tenant_id         = data.azurerm_client_config.current.tenant_id
-}
+# resource "azurerm_mssql_server_active_directory_administrator" "sql_admin" {
+#   server_id         = azurerm_mssql_server.sql.id
+#   login             = "hhristoff@yahoo.com"
+#   object_id         = "a2153559-d8c7-4b10-9f6d-7b69532819ad"
+#   tenant_id         = data.azurerm_client_config.current.tenant_id
+# }
 
 resource "azurerm_mssql_firewall_rule" "allow_my_ip" {
   name             = "AllowMyIP"
