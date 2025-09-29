@@ -20,14 +20,14 @@ resource "azurerm_windows_web_app" "webapp" {
   name                = local.app_name
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  service_plan_id = azurerm_service_plan.appserviceplan.id
-  
+  service_plan_id     = azurerm_service_plan.appserviceplan.id
+
   identity {
     type = "SystemAssigned"
   }
 
-    app_settings = {
-      "DbConnectionString" = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.keyvault_db_connection_string.id})"
+  app_settings = {
+    "DbConnectionString" = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.keyvault_db_connection_string.id})"
   }
 
   site_config {
@@ -67,22 +67,22 @@ resource "azurerm_mssql_firewall_rule" "allow_my_ip" {
 }
 
 resource "azurerm_mssql_database" "db" {
-  name           = local.db_name
-  server_id      = azurerm_mssql_server.sql.id
-  sku_name       = "Basic"
-  tags           = local.tags
+  name      = local.db_name
+  server_id = azurerm_mssql_server.sql.id
+  sku_name  = "Basic"
+  tags      = local.tags
 }
 
 # Key Vault
 data "azurerm_client_config" "current" {}
 
 resource "azurerm_key_vault" "kv" {
-  name                        = local.kv_name
-  location                    = azurerm_resource_group.rg.location
-  resource_group_name         = azurerm_resource_group.rg.name
-  tenant_id                   = data.azurerm_client_config.current.tenant_id
-  sku_name                    = "standard"
-  tags                        = local.tags
+  name                = local.kv_name
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  tenant_id           = data.azurerm_client_config.current.tenant_id
+  sku_name            = "standard"
+  tags                = local.tags
 }
 
 resource "azurerm_key_vault_secret" "keyvault_db_connection_string" {
@@ -103,7 +103,7 @@ resource "azurerm_key_vault_access_policy" "peronal_keyvault_policy" {
 resource "azurerm_key_vault_access_policy" "webapp_keyvault_policy" {
   key_vault_id = azurerm_key_vault.kv.id
   tenant_id    = data.azurerm_client_config.current.tenant_id
-  object_id = azurerm_windows_web_app.webapp.identity[0].principal_id
+  object_id    = azurerm_windows_web_app.webapp.identity[0].principal_id
 
   secret_permissions = ["Get", "List"]
 }
@@ -113,7 +113,7 @@ resource "azurerm_key_vault_access_policy" "terraform_sp_keyvault_policy" {
   tenant_id    = data.azurerm_client_config.current.tenant_id
   object_id    = var.terraform_sp_object_id
 
-  secret_permissions = ["Get","List","Set","Delete"]
+  secret_permissions = ["Get", "List", "Set", "Delete"]
 }
 
 # SignalR

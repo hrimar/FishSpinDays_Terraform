@@ -34,9 +34,9 @@ jobs:
         uses: hashicorp/setup-terraform@v3
 
       # 3. Terraform fmt (format check)
-      - name: Terraform Fmt Check
+      - name: Terraform Fmt
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform fmt -check
+        run: terraform fmt -recursive
 
       # 4. Terraform validate
       - name: Terraform Validate
