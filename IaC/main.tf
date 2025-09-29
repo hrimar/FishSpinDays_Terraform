@@ -64,12 +64,19 @@ resource "azurerm_windows_web_app" "webapp" {
     application_stack {
       dotnet_version = "v8.0"
     }
-    always_on      = false
-    http2_enabled  = true
+    always_on   = false
+    http2_enabled = true
   }
 
   tags = local.tags
+
+  lifecycle {
+    ignore_changes = [
+      app_settings
+    ]
+  }
 }
+
 
 # ------------------------------------------------------
 # Key Vault
