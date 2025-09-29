@@ -20,3 +20,8 @@ variable "my_ip_address" {
   type        = string
   description = "Your public IP address to allow access to SQL Server."
 }
+
+variable "terraform_sp_object_id" {
+  type        = string
+  description = "Object ID of the Service Principal used by CI"
+}

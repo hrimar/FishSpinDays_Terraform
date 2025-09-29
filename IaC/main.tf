@@ -108,6 +108,14 @@ resource "azurerm_key_vault_access_policy" "webapp_keyvault_policy" {
   secret_permissions = ["Get", "List"]
 }
 
+resource "azurerm_key_vault_access_policy" "terraform_sp_keyvault_policy" {
+  key_vault_id = azurerm_key_vault.kv.id
+  tenant_id    = data.azurerm_client_config.current.tenant_id
+  object_id    = var.terraform_sp_object_id
+
+  secret_permissions = ["Get","List","Set","Delete"]
+}
+
 # SignalR
 resource "azurerm_signalr_service" "signalr" {
   name                = local.signalr_name
