@@ -59,21 +59,10 @@ jobs:
         run: terraform apply -auto-approve -var="sql_admin_login=${{ env.SQL_ADMIN_LOGIN }}" -var="sql_admin_password=${{ env.SQL_ADMIN_PASSWORD }}" -var="my_ip_address=${{ env.MY_IP_ADDRESS }}" -var="terraform_sp_object_id=${{ env.TERRAFORM_SP_OBJECT_ID }}"
 
       # 8. Create SQL AD User
-      - name: Install sqlcmd and Create SQL AD User
-        run: |
-          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-          curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
-
-          sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev
-
-          export PATH="$PATH:/opt/mssql-tools18/bin"
-
-          # 2. Create SQL user and role
-          sqlcmd -S ${{ secrets.AZURE_SQL_SERVER }}.database.windows.net -d ${{ secrets.AZURE_SQL_DB }} -G -U ${{ secrets.SQL_ADMIN_LOGIN }} -P ${{ secrets.SQL_ADMIN_PASSWORD }} -Q "CREATE USER [fishspindays-prod-ne-app] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [fishspindays-prod-ne-app]; ALTER ROLE db_datawriter ADD MEMBER [fishspindays-prod-ne-app];"
+      - name: Create SQL AD User
+        run: curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add - && curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list && sudo apt-get update && sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev && /opt/mssql-tools18/bin/sqlcmd -S ${{ secrets.AZURE_SQL_SERVER }}.database.windows.net -d ${{ secrets.AZURE_SQL_DB }} -G -U ${{ secrets.SQL_ADMIN_LOGIN }} -P ${{ secrets.SQL_ADMIN_PASSWORD }} -Q "CREATE USER [fishspindays-prod-ne-app] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [fishspindays-prod-ne-app]; ALTER ROLE db_datawriter ADD MEMBER [fishspindays-prod-ne-app];"
         env:
           AZURE_SQL_SERVER: ${{ secrets.AZURE_SQL_SERVER }}
           AZURE_SQL_DB: ${{ secrets.AZURE_SQL_DB }}
           SQL_ADMIN_LOGIN: ${{ secrets.SQL_ADMIN_LOGIN }}
           SQL_ADMIN_PASSWORD: ${{ secrets.SQL_ADMIN_PASSWORD }}
-
