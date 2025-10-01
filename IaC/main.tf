@@ -1,11 +1,14 @@
-# Resource Group
+# ---- DATA ----
+data "azurerm_client_config" "current" {}
+
+# ---- RESOURCE GROUP ----
 resource "azurerm_resource_group" "rg" {
   name     = local.rg_name
   location = var.location
   tags     = local.tags
 }
 
-# App Service Plan
+# ---- APP SERVICE PLAN ----
 resource "azurerm_service_plan" "appserviceplan" {
   name                = local.plan_name
   location            = azurerm_resource_group.rg.location
@@ -15,7 +18,7 @@ resource "azurerm_service_plan" "appserviceplan" {
   tags                = local.tags
 }
 
-# App Service
+# ---- WINDOWS WEB APP ----
 resource "azurerm_windows_web_app" "webapp" {
   name                = local.app_name
   location            = azurerm_resource_group.rg.location
@@ -35,9 +38,13 @@ resource "azurerm_windows_web_app" "webapp" {
   }
 
   tags = local.tags
+
+  app_settings = {
+    "DbConnectionString" = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.keyvault_db_connection_string.id})"
+  }
 }
 
-# SQL Server и Database
+# ---- SQL SERVER & DATABASE ----
 resource "azurerm_mssql_server" "sql" {
   name                         = local.sql_name
   resource_group_name          = azurerm_resource_group.rg.name
@@ -62,25 +69,27 @@ resource "azurerm_mssql_database" "db" {
   tags      = local.tags
 }
 
-# Key Vault
-data "azurerm_client_config" "current" {}
-
+# ---- KEY VAULT ----
 resource "azurerm_key_vault" "kv" {
   name                = local.kv_name
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   tenant_id           = data.azurerm_client_config.current.tenant_id
   sku_name            = "standard"
+  purge_protection_enabled = false
   tags                = local.tags
 }
 
-resource "azurerm_key_vault_access_policy" "peronal_keyvault_policy" {
+# ---- KEY VAULT ACCESS POLICIES ----
+resource "azurerm_key_vault_access_policy" "personal_keyvault_policy" {
   key_vault_id = azurerm_key_vault.kv.id
   tenant_id    = data.azurerm_client_config.current.tenant_id
   object_id    = data.azurerm_client_config.current.object_id
 
   secret_permissions = ["Get", "List", "Set", "Delete", "Purge", "Recover"]
   key_permissions    = ["Get", "List", "Create", "Delete"]
+
+  depends_on = [azurerm_key_vault.kv]
 }
 
 resource "azurerm_key_vault_access_policy" "webapp_keyvault_policy" {
@@ -93,24 +102,7 @@ resource "azurerm_key_vault_access_policy" "webapp_keyvault_policy" {
   depends_on = [azurerm_windows_web_app.webapp, azurerm_key_vault.kv]
 }
 
-resource "azurerm_key_vault_access_policy" "terraform_sp_keyvault_policy" {
-  key_vault_id = azurerm_key_vault.kv.id
-  tenant_id    = data.azurerm_client_config.current.tenant_id
-  object_id    = var.terraform_sp_object_id
-
-  secret_permissions = ["Get", "List", "Set", "Delete", "Purge", "Recover"]
-}
-
-# Key Vault Secret
-resource "azurerm_key_vault_secret" "keyvault_db_connection_string" {
-  name         = "DbConnectionString"
-  value        = "Server=tcp:${azurerm_mssql_server.sql.name}.database.windows.net,1433;Database=${azurerm_mssql_database.db.name};Authentication=Active Directory Managed Identity"
-  key_vault_id = azurerm_key_vault.kv.id
-  
-  depends_on = [azurerm_mssql_server.sql, azurerm_mssql_database.db, azurerm_key_vault.kv]
-}
-
-# SignalR
+# ---- SIGNALR ----
 resource "azurerm_signalr_service" "signalr" {
   name                = local.signalr_name
   location            = azurerm_resource_group.rg.location
@@ -123,3 +115,23 @@ resource "azurerm_signalr_service" "signalr" {
 
   tags = local.tags
 }
+
+# ---- KEY VAULT ACCESS POLICY за Terraform SP ----
+resource "azurerm_key_vault_access_policy" "terraform_sp_keyvault_policy" {
+  key_vault_id = azurerm_key_vault.kv.id
+  tenant_id    = data.azurerm_client_config.current.tenant_id
+  object_id    = var.terraform_sp_object_id
+
+  secret_permissions = ["Get", "List", "Set", "Delete", "Purge", "Recover"]
+}
+
+# ---- KEY VAULT SECRET за DB Connection String ----
+resource "azurerm_key_vault_secret" "keyvault_db_connection_string" {
+  name         = "DbConnectionString"
+  value        = "Server=tcp:${azurerm_mssql_server.sql.name}.database.windows.net,1433;Database=${azurerm_mssql_database.db.name};Authentication=Active Directory Managed Identity"
+  key_vault_id = azurerm_key_vault.kv.id
+  
+  depends_on = [azurerm_mssql_server.sql, azurerm_mssql_database.db, azurerm_key_vault_access_policy.terraform_sp_keyvault_policy]
+}
+
+
