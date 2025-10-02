@@ -58,20 +58,52 @@ jobs:
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform apply -auto-approve -var="sql_admin_login=${{ env.SQL_ADMIN_LOGIN }}" -var="sql_admin_password=${{ env.SQL_ADMIN_PASSWORD }}" -var="my_ip_address=${{ env.MY_IP_ADDRESS }}" -var="terraform_sp_object_id=${{ env.TERRAFORM_SP_OBJECT_ID }}"
 
+      # 7.1 Export outputs to environment
+      - name: Export Terraform outputs
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          echo "SQL_SERVER_FQDN=$(terraform output -raw sql_server_fqdn)" >> $GITHUB_ENV
+          echo "SQL_DB_NAME=$(terraform output -raw sql_db_name)" >> $GITHUB_ENV
+          echo "RESOURCE_GROUP=$(terraform output -raw resource_group_name)" >> $GITHUB_ENV
+
+      # 7.2 Login to Azure and open runner IP in SQL firewall (short-lived)
+      - name: Allow runner IP to access SQL
+        env:
+          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          az login --service-principal -u "$ARM_CLIENT_ID" -p "$ARM_CLIENT_SECRET" --tenant "$ARM_TENANT_ID"
+          RUNNER_IP=$(curl -s https://ifconfig.me || curl -s https://ipinfo.io/ip)
+          SERVER_NAME=$(echo "$SQL_SERVER_FQDN" | sed 's/\.database\.windows\.net$//')
+          az sql server firewall-rule create --resource-group "$RESOURCE_GROUP" --server "$SERVER_NAME" --name gha-runner --start-ip-address "$RUNNER_IP" --end-ip-address "$RUNNER_IP" --subscription "$ARM_SUBSCRIPTION_ID"
+
       - name: Create SQL AD User
         env:
-          AZURE_SQL_SERVER: ${{ secrets.AZURE_SQL_SERVER }}
-          AZURE_SQL_DB: ${{ secrets.AZURE_SQL_DB }}
+          AZURE_SQL_SERVER_FQDN: ${{ env.SQL_SERVER_FQDN }}
+          AZURE_SQL_DB: ${{ env.SQL_DB_NAME }}
           SQL_ADMIN_LOGIN: ${{ secrets.SQL_ADMIN_LOGIN }}
           SQL_ADMIN_PASSWORD: ${{ secrets.SQL_ADMIN_PASSWORD }}
         run: |
           set -euo pipefail
-          set +H                                  # disable history expansion (protects special characters in passwords)
-
-          curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
-          sudo curl https://packages.microsoft.com/config/ubuntu/22.04/prod.list -o /etc/apt/sources.list.d/mssql-release.list
-          sudo apt-get update
+          set +H
+          sudo curl -s https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          sudo curl -s https://packages.microsoft.com/config/ubuntu/22.04/prod.list -o /etc/apt/sources.list.d/mssql-release.list
+          sudo apt-get update -y
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev
+          /opt/mssql-tools18/bin/sqlcmd -S "${AZURE_SQL_SERVER_FQDN}" -d "${AZURE_SQL_DB}" -U "${SQL_ADMIN_LOGIN}" -P "${SQL_ADMIN_PASSWORD}" -Q "CREATE USER [fishspindays-prod-ne-app] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [fishspindays-prod-ne-app]; ALTER ROLE db_datawriter ADD MEMBER [fishspindays-prod-ne-app];"
 
-          # single atomic sqlcmd invocation (no backslashes, password quoted)
-          /opt/mssql-tools18/bin/sqlcmd -S "${AZURE_SQL_SERVER}.database.windows.net" -d "${AZURE_SQL_DB}" -U "${SQL_ADMIN_LOGIN}" -P "${SQL_ADMIN_PASSWORD}" -Q "CREATE USER [fishspindays-prod-ne-app] FROM EXTERNAL PROVIDER; ALTER ROLE db_datareader ADD MEMBER [fishspindays-prod-ne-app]; ALTER ROLE db_datawriter ADD MEMBER [fishspindays-prod-ne-app];"
+      - name: Remove transient firewall rule
+        env:
+          ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+          ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+          ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+        run: |
+          set -euo pipefail
+          az login --service-principal -u "$ARM_CLIENT_ID" -p "$ARM_CLIENT_SECRET" --tenant "$ARM_TENANT_ID"
+          SERVER_NAME=$(echo "$SQL_SERVER_FQDN" | sed 's/\.database\.windows\.net$//')
+          az sql server firewall-rule delete --resource-group "$RESOURCE_GROUP" --server "$SERVER_NAME" --name gha-runner --yes --subscription "$ARM_SUBSCRIPTION_ID"
+# ...existing code...
