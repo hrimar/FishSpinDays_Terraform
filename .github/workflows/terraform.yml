@@ -105,5 +105,4 @@ jobs:
           set -euo pipefail
           az login --service-principal -u "$ARM_CLIENT_ID" -p "$ARM_CLIENT_SECRET" --tenant "$ARM_TENANT_ID"
           SERVER_NAME=$(echo "$SQL_SERVER_FQDN" | sed 's/\.database\.windows\.net$//')
-          az sql server firewall-rule delete --resource-group "$RESOURCE_GROUP" --server "$SERVER_NAME" --name gha-runner --yes --subscription "$ARM_SUBSCRIPTION_ID"
-# ...existing code...
+          az sql server firewall-rule delete --name gha-runner --resource-group "$RESOURCE_GROUP" --server "$SERVER_NAME" --subscription "$ARM_SUBSCRIPTION_ID" || true
