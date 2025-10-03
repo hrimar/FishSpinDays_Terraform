@@ -20,6 +20,7 @@ jobs:
       ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
       ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
       TERRAFORM_SP_OBJECT_ID: ${{ secrets.TERRAFORM_SP_OBJECT_ID }}
+      PERSONAL_OBJECT_ID: ${{ secrets.PERSONAL_OBJECT_ID }}
       SQL_ADMIN_LOGIN: ${{ secrets.SQL_ADMIN_LOGIN }}
       SQL_ADMIN_PASSWORD: ${{ secrets.SQL_ADMIN_PASSWORD }}
       MY_IP_ADDRESS: ${{ secrets.MY_IP_ADDRESS }}
@@ -51,12 +52,12 @@ jobs:
       # 6. Terraform Plan
       - name: Terraform Plan
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform plan -var="sql_admin_login=${{ env.SQL_ADMIN_LOGIN }}" -var="sql_admin_password=${{ env.SQL_ADMIN_PASSWORD }}" -var="my_ip_address=${{ env.MY_IP_ADDRESS }}" -var="terraform_sp_object_id=${{ env.TERRAFORM_SP_OBJECT_ID }}"
+        run: terraform plan -var="sql_admin_login=${{ env.SQL_ADMIN_LOGIN }}" -var="sql_admin_password=${{ env.SQL_ADMIN_PASSWORD }}" -var="my_ip_address=${{ env.MY_IP_ADDRESS }}" -var="terraform_sp_object_id=${{ env.TERRAFORM_SP_OBJECT_ID }}" -var="personal_object_id=${{ env.PERSONAL_OBJECT_ID }}"
 
       # 7. Terraform Apply
       - name: Terraform Apply
         working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform apply -auto-approve -var="sql_admin_login=${{ env.SQL_ADMIN_LOGIN }}" -var="sql_admin_password=${{ env.SQL_ADMIN_PASSWORD }}" -var="my_ip_address=${{ env.MY_IP_ADDRESS }}" -var="terraform_sp_object_id=${{ env.TERRAFORM_SP_OBJECT_ID }}"
+        run: terraform apply -auto-approve -var="sql_admin_login=${{ env.SQL_ADMIN_LOGIN }}" -var="sql_admin_password=${{ env.SQL_ADMIN_PASSWORD }}" -var="my_ip_address=${{ env.MY_IP_ADDRESS }}" -var="terraform_sp_object_id=${{ env.TERRAFORM_SP_OBJECT_ID }}" -var="personal_object_id=${{ env.PERSONAL_OBJECT_ID }}"
 
       # 7.1 Export outputs to environment
       - name: Export Terraform outputs

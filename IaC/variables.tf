@@ -25,3 +25,8 @@ variable "terraform_sp_object_id" {
   type        = string
   description = "Object ID of the Service Principal used by CI"
 }
+
+variable "personal_object_id" {
+  description = "Azure AD object id for the user who should get Key Vault access"
+  type        = string
+}
