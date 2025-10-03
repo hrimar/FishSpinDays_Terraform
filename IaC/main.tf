@@ -41,6 +41,7 @@ resource "azurerm_windows_web_app" "webapp" {
 
   app_settings = {
     "DbConnectionString" = "@Microsoft.KeyVault(SecretUri=${azurerm_key_vault_secret.keyvault_db_connection_string.id})"
+    "RunMigrationsOnStartup" = "true"
   }
 }
 
